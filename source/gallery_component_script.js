@@ -77,7 +77,7 @@ let currentPanSpeedX = 0;
 
 // --- paintings set configuration ---
 const paintingBaseSize = { width: 1, height: .8 };
-const spacing = .5;
+const spacing = .8;
 const paintingsPerRow = 11;
 const panelHeightPx = 40;
 const cameraFocusDistance = .8;
@@ -598,7 +598,7 @@ function computeUVs(uniqueVerticesArray, meshVerticesArray, meshNormalsArray, nu
 }
 
 // create simple geometry for painting frame and pass-partout
-function createFrameGeometry(width, height, thickness, depth)
+function createFrameGeometry(width, height, thickness, depth, bFlat = false)
 {
     const hw = width * .5;
     const hh = height * .5;
@@ -623,22 +623,45 @@ function createFrameGeometry(width, height, thickness, depth)
     const numFrameSides = 4;
 
     for (let i = 0; i < numFrameSides; ++i) {
-        const v0_inner_front = cornersPositions[i];
-        const v1_outer_front = new THREE.Vector3(
-            v0_inner_front.x + signs[i].x * thickness,
-            v0_inner_front.y + signs[i].y * thickness,
-            v0_inner_front.z
+        const v_inner_front = cornersPositions[i];
+        const v_outer_front = new THREE.Vector3(
+            v_inner_front.x + signs[i].x * thickness,
+            v_inner_front.y + signs[i].y * thickness,
+            v_inner_front.z
         );
-        profileVertices.push(v0_inner_front.clone());
         
-        // TODO: eventually add more segments to profile
-        //profileVertices.push(v0_inner_front.clone().add(v1_outer_front.clone().sub(v0_inner_front).normalize()).multiply(.5).add(new THREE.Vector3(.0, .0, .1)));
-        //profileVertices.push(v0_inner_front.clone().add(v1_outer_front.sub(v0_inner_front).normalize()).multiply(.5).add(new THREE.Vector3(.0, .0, .1)));
+        if (!bFlat)
+        {
+            let numSteps = 3;
+            let minDepth = depth*.3;
+            let zStepDepth = -(depth - minDepth)/numSteps;
+            profileVertices.push(v_inner_front.clone().add(new THREE.Vector3(.0, .0, zStepDepth*numSteps)));
+        
+            let diff = v_outer_front.clone().sub(v_inner_front);
+            let diff_increment = diff.clone().divideScalar(numSteps+1);
 
+            diff = diff_increment.clone();
+
+        // TODO: eventually add more segments to profile
+            while (numSteps > 0)
+            {
+                profileVertices.push(v_inner_front.clone().add(diff).add(new THREE.Vector3(.0, .0, zStepDepth*numSteps)));
+                numSteps--;
+                profileVertices.push(v_inner_front.clone().add(diff).add(new THREE.Vector3(.0, .0, zStepDepth*numSteps)));
+                diff.add(diff_increment);
+            }
+            //profileVertices.push(v_inner_front.clone().add(diff.clone().multiplyScalar(.4)).add(new THREE.Vector3(.0, .0, zStepDepth)));
+            //profileVertices.push(v_inner_front.clone().add(diff.clone().multiplyScalar(.7)));
+
+        }
+        else
+        {
+            profileVertices.push(v_inner_front.clone());
+        }
         
-        profileVertices.push(v1_outer_front.clone());
-        profileVertices.push(v1_outer_front.clone().add(zOffsetVec));
-        profileVertices.push(v0_inner_front.clone().add(zOffsetVec));
+        profileVertices.push(v_outer_front.clone());
+        profileVertices.push(v_outer_front.clone().add(zOffsetVec));
+        profileVertices.push(v_inner_front.clone().add(zOffsetVec));
     }
 
     // number of vertices per single profile
@@ -787,10 +810,11 @@ function loadPaintings(paintingDataArray) {
 
             // add pass-partout (mat) mesh
             // ---------------------------
-            const passpartoutThickness = .1;
+            const passpartoutThickness = .2;
             const passpartoutDepth = 0.005;
                         
-            const passpartoutGeometry = createFrameGeometry(planeWidth, planeHeight, passpartoutThickness, passpartoutDepth);
+            let bFlat = true;
+            const passpartoutGeometry = createFrameGeometry(planeWidth, planeHeight, passpartoutThickness, passpartoutDepth, bFlat);
             const passpartout = new THREE.Mesh(passpartoutGeometry, passpartoutMaterial);
             passpartout.position.copy(paintingMesh.position);
             passpartout.position.z += passpartoutDepth;
@@ -800,8 +824,10 @@ function loadPaintings(paintingDataArray) {
 
             // add frame mesh
             // ---------------------------
-            const frameThickness = .04;
-            const frameDepth = 0.05;
+            //const frameThickness = .04;
+            const frameThickness = .08;
+            //const frameDepth = 0.05;
+            const frameDepth = .08;
 
             const frameGeometry = createFrameGeometry(planeWidth+passpartoutThickness*2, planeHeight+passpartoutThickness*2, frameThickness, frameDepth);
             const frame = new THREE.Mesh(frameGeometry, frameMaterial);
