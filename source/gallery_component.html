@@ -9,7 +9,7 @@
 <body>
     <div id="info">
         <h2>THREE js Paintings Gallery</h2>
-        <p><strong>Steuerung:</strong> Klicken Sie in die Galerie, um die Steuerung zu aktivieren. Verwenden Sie WASD oder Pfeiltasten zum Bewegen und die Maus zum Umschauen. Drücken Sie ESC, um die Steuerung zu deaktivieren.</p>
+        <!--<p>Drag to rotate, scroll to zoom. Hover over a painting to see its name. Click on a painting to see its info.</p>-->
 
         <div id="debugDiv">
             <!-- use for showing debug infos -->
@@ -26,8 +26,18 @@
                 <button id="actionBtn1" class="action-button">Info</button>
                 <button id="actionBtn2" class="action-button"><img src='./data/icons/youtube.png' alt='video' style='border:0px' width='16' height='16'/></button>
                 <button id="actionBtn3" class="action-button"><img src='./data/icons/download.png' alt='download' style='border:0px' width='16' height='16'/></button>
+                <button id="actionBtn4" class="action-button">📁 Upload</button>
+                <button id="actionBtn5" class="action-button">✏️ Edit</button>
             </div>
-            <div id="paintingDescription">I appear on hover!</div>
+            <div id="paintingDescription" title="Doppelklick zum Bearbeiten">I appear on hover!</div>
+            <!-- Hidden file input for image upload -->
+            <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+            <!-- Hidden textarea for description editing -->
+            <textarea id="descriptionEdit" placeholder="Neue Beschreibung eingeben..." style="display: none; width: 100%; height: 60px; margin-top: 5px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; resize: vertical; box-sizing: border-box;"></textarea>
+            <div id="descriptionButtons" style="display: none; margin-top: 5px; text-align: right;">
+                <button id="saveDescriptionBtn" class="action-button" style="margin-right: 5px;">💾 Speichern</button>
+                <button id="cancelDescriptionBtn" class="action-button">❌ Abbrechen</button>
+            </div>
         </div>
 
          <div id="inactivityCountdown" style="position: absolute; bottom: 10px; right: 10px; background-color: rgba(0,0,0,0.6); color: white; padding: 5px; border-radius: 3px; font-size: 12px; display: none; z-index: 1000;"></div>

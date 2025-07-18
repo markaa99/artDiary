@@ -89,8 +89,13 @@ let galleryContainerElement; // Reference to the container div
 let tooltipElement;
 let actionsPanelElement;
 let countdownDisplayElement;
-let actionBtn1, actionBtn2, actionBtn3;
+let actionBtn1, actionBtn2, actionBtn3, actionBtn4, actionBtn5;
 let focusedElementDescription;
+let imageUploadInput; // File input for image upload
+let descriptionEditTextarea; // Textarea for description editing
+let descriptionButtons; // Container for description edit buttons
+let saveDescriptionBtn, cancelDescriptionBtn; // Description edit buttons
+let isEditingDescription = false; // Flag to track if description is being edited
 
 // --- raycasting ---
 const raycaster = new THREE.Raycaster();
@@ -222,8 +227,15 @@ async function init()
     actionBtn1 = document.getElementById('actionBtn1');
     actionBtn2 = document.getElementById('actionBtn2');
     actionBtn3 = document.getElementById('actionBtn3');
+    actionBtn4 = document.getElementById('actionBtn4');
+    actionBtn5 = document.getElementById('actionBtn5');
     countdownDisplayElement = document.getElementById('inactivityCountdown');
     focusedElementDescription = document.getElementById('paintingDescription');
+    imageUploadInput = document.getElementById('imageUpload');
+    descriptionEditTextarea = document.getElementById('descriptionEdit');
+    descriptionButtons = document.getElementById('descriptionButtons');
+    saveDescriptionBtn = document.getElementById('saveDescriptionBtn');
+    cancelDescriptionBtn = document.getElementById('cancelDescriptionBtn');
 
     // disable action panel visibility at start
     actionsPanelElement.style.opacity = '0';
@@ -263,6 +275,32 @@ async function init()
     actionBtn1.addEventListener('click', () => handleAction('info'));
     actionBtn2.addEventListener('click', () => handleAction('video'));
     actionBtn3.addEventListener('click', () => handleAction('data'));
+    actionBtn4.addEventListener('click', () => handleAction('upload'));
+    actionBtn5.addEventListener('click', () => handleAction('edit'));
+
+    // Event listener for file upload
+    imageUploadInput.addEventListener('change', handleImageUpload);
+
+    // Event listeners for description editing
+    saveDescriptionBtn.addEventListener('click', saveDescription);
+    cancelDescriptionBtn.addEventListener('click', cancelDescriptionEdit);
+    
+    // Add double-click event to description to enable editing
+    focusedElementDescription.addEventListener('dblclick', startDescriptionEdit);
+    
+    // Add keyboard event listeners for description editing
+    descriptionEditTextarea.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            cancelDescriptionEdit();
+        }
+        // Prevent event from bubbling up to avoid WASD interference
+        event.stopPropagation();
+    });
+    
+    descriptionEditTextarea.addEventListener('keyup', (event) => {
+        // Prevent event from bubbling up to avoid WASD interference
+        event.stopPropagation();
+    });
 
     debugDiv = document.getElementById('debugDiv');
 
@@ -1304,6 +1342,9 @@ function onMouseWheel(event) {
 
 // WASD keyboard controls
 function onKeyDown(event) {
+    // Don't handle WASD keys if we're editing description
+    if (isEditingDescription) return;
+    
     const key = event.key.toLowerCase();
     if (key in keys) {
         keys[key] = true;
@@ -1317,6 +1358,9 @@ function onKeyDown(event) {
 }
 
 function onKeyUp(event) {
+    // Don't handle WASD keys if we're editing description
+    if (isEditingDescription) return;
+    
     const key = event.key.toLowerCase();
     if (key in keys) {
         keys[key] = false;
@@ -1330,7 +1374,7 @@ function onKeyUp(event) {
 }
 
 function handleWASDMovement() {
-    if (isCameraAnimating) return; // Don't move during camera animations
+    if (isCameraAnimating || isEditingDescription) return; // Don't move during camera animations or description editing
     
     // Get camera direction vectors
     const cameraDirection = new THREE.Vector3();
@@ -1659,7 +1703,8 @@ function startInactivityTimer() {
     if (inactivityTimer)
         clearTimeout(inactivityTimer); // clear previous timer
     
-    if (currentFocusedPainting && !isCameraAnimating) {
+    // Don't start timer if editing description
+    if (currentFocusedPainting && !isCameraAnimating && !isEditingDescription) {
         //console.log("start inactivity timer.");
         inactivityTimer = setTimeout(() => {
             //console.log("inactivity timer timeout.");
@@ -1834,6 +1879,10 @@ function updateActionsPanelVisibility(show)
         actionBtn1.textContent = data.Name || 'Info';
         actionBtn2.disabled = !data.Video || data.Video.toLowerCase() === 'none';
         actionBtn3.disabled = !data.Data || data.Data.toLowerCase() === 'none';
+        // Upload button is always enabled for all paintings
+        actionBtn4.disabled = false;
+        // Edit button is always enabled for all paintings
+        actionBtn5.disabled = false;
 
         // abrupt state change:
         //actionsPanelElement.style.opacity = '1';
@@ -1889,7 +1938,79 @@ function handleAction(actionType)
                 document.body.removeChild(link);
             } else alert('No drawing process file available.');
             break;
+        case 'upload':
+            // Trigger file input click
+            imageUploadInput.click();
+            break;
+        case 'edit':
+            // Start description editing
+            startDescriptionEdit();
+            break;
     }
+}
+
+// Functions for description editing
+function startDescriptionEdit() {
+    if (!currentFocusedPainting) return;
+    
+    // Set editing flag to disable WASD controls
+    isEditingDescription = true;
+    
+    // Stop inactivity timer during editing
+    clearTimeout(inactivityTimer);
+    
+    // Get current description
+    const currentDescription = currentFocusedPainting.userData.Description || '';
+    
+    // Show textarea with current description
+    descriptionEditTextarea.value = currentDescription;
+    descriptionEditTextarea.style.display = 'block';
+    descriptionButtons.style.display = 'block';
+    
+    // Hide the normal description display
+    focusedElementDescription.style.display = 'none';
+    
+    // Focus on textarea
+    descriptionEditTextarea.focus();
+    descriptionEditTextarea.select();
+}
+
+function saveDescription() {
+    if (!currentFocusedPainting) return;
+    
+    const newDescription = descriptionEditTextarea.value.trim();
+    
+    // Update the painting's userData
+    currentFocusedPainting.userData.Description = newDescription;
+    
+    // Update the display
+    focusedElementDescription.innerHTML = newDescription;
+    
+    // Hide editing elements and show normal description
+    descriptionEditTextarea.style.display = 'none';
+    descriptionButtons.style.display = 'none';
+    focusedElementDescription.style.display = 'block';
+    
+    // Re-enable WASD controls
+    isEditingDescription = false;
+    
+    // Restart inactivity timer
+    startInactivityTimer();
+    
+    console.log(`Beschreibung aktualisiert: "${newDescription}"`);
+}
+
+function cancelDescriptionEdit() {
+    // Hide editing elements and show normal description
+    descriptionEditTextarea.style.display = 'none';
+    descriptionButtons.style.display = 'none';
+    focusedElementDescription.style.display = 'block';
+    
+    // Re-enable WASD controls
+    isEditingDescription = false;
+    
+    // Restart inactivity timer
+    startInactivityTimer();
 }
 
 function animate() {
@@ -1925,12 +2046,21 @@ function animate() {
     let maxIntensity = 50.; // when far - reduziert da wir besseres globales Licht haben
     let minDistance = 1.0;
     let maxDistance = 15.0;
+    
+    // Calculate base intensity
+    let baseIntensity = THREE.MathUtils.clamp(
+        THREE.MathUtils.mapLinear(cameraPos_WS.z, minDistance, maxDistance, minIntensity, maxIntensity),
+        minIntensity, maxIntensity);
+    
+    // Reduce intensity significantly when focusing on a painting
+    if (currentFocusedPainting) {
+        baseIntensity *= 0.2; // Reduce to 20% of normal intensity when focused
+    }
+    
     // remap from one range to another
     //headlight.decay = 2; // default
     headlight.distance = floorSize.width * 2.0;
-    headlight.intensity = THREE.MathUtils.clamp(
-        THREE.MathUtils.mapLinear(cameraPos_WS.z, minDistance, maxDistance, minIntensity, maxIntensity),
-        minIntensity, maxIntensity);
+    headlight.intensity = baseIntensity;
     //console.log("headlight position:", headlight.position);
     //console.log("headlight intensity:", headlight.intensity);
 
@@ -1942,3 +2072,65 @@ function animate() {
 
 // --- start the application ---
 init();
+
+function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Check if it's an image
+    if (!file.type.startsWith('image/')) {
+        alert('Bitte wählen Sie eine Bilddatei aus.');
+        return;
+    }
+
+    // Check file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+        alert('Die Datei ist zu groß. Maximale Größe: 10MB.');
+        return;
+    }
+
+    if (!currentFocusedPainting) {
+        alert('Kein Bild ausgewählt.');
+        return;
+    }
+
+    // Create FileReader to read the image
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        // Create new texture from uploaded image
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load(e.target.result, function(texture) {
+            // Apply the 180-degree rotation to match the existing setup
+            texture.center.set(0.5, 0.5);
+            texture.rotation = Math.PI;
+            
+            // Replace the current painting's texture
+            if (currentFocusedPainting.material.map) {
+                currentFocusedPainting.material.map.dispose(); // Clean up old texture
+            }
+            currentFocusedPainting.material.map = texture;
+            currentFocusedPainting.material.needsUpdate = true;
+            
+            // Update painting name and userData
+            currentFocusedPainting.name = `Custom Image - ${file.name}`;
+            currentFocusedPainting.userData.Name = currentFocusedPainting.name;
+            currentFocusedPainting.userData.Description = `Hochgeladenes Bild: ${file.name}`;
+            currentFocusedPainting.userData.isCustomUpload = true;
+            
+            // Update the action panel to show new name
+            const data = currentFocusedPainting.userData;
+            actionBtn1.textContent = data.Name || 'Info';
+            focusedElementDescription.innerHTML = data.Description;
+            
+            console.log(`Bild ersetzt: ${file.name}`);
+            
+            // Reset the file input
+            imageUploadInput.value = '';
+        }, undefined, function(error) {
+            console.error('Fehler beim Laden des Bildes:', error);
+            alert('Fehler beim Laden des Bildes. Bitte versuchen Sie es erneut.');
+        });
+    };
+    
+    reader.readAsDataURL(file);
+}
